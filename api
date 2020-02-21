@@ -1,0 +1,158 @@
+import axios from 'axios';
+
+import { isArray, isObject } from './types';
+
+/**
+ * Transforms the object into a query string, using the key as the query parameter name.
+ *
+ * @param {object} qs The query string object.
+ * @returns {string|undefined} The query string representation if there were any entries,
+ * otherwise {@code undefined}.
+ */
+function toQueryString(qs) {
+  if (!isObject(qs)) {
+    return undefined;
+  }
+
+  const params = [];
+
+  Object.keys(qs).forEach((key) => {
+    const value = qs[key];
+    if (isArray(value)) {
+      value.forEach(entry => params.push(`${encodeURIComponent(key)}[]=${encodeURIComponent(entry)}`));
+    } else {
+      params.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+    }
+  });
+
+  return params.length > 0 ? params.join('&') : undefined;
+}
+
+/**
+ * Encodes the path parts if the argument is an array, otherwise simply returns the value of the
+ * path.
+ *
+ * @param {string|string[]} path The path to encode the parts of if it is an array.
+ * @returns {string} Returns the path argument as-is if it is not an array, otherwise returns the
+ * pieces joined with a / (no trailing / is added) after encoding each piece.
+ */
+function encodePath(path) {
+  if (!isArray(path)) {
+    return path;
+  }
+  if (path.length === 0) {
+    return '';
+  }
+
+  return path.map((part) => {
+    if (!isArray(part)) {
+      return part;
+    }
+
+    return part.map(piece => encodeURIComponent(piece)).join('/');
+  }).join('/');
+}
+
+/**
+ * Creates a URL with a URL string an object representing the query string.
+ *
+ * @param {string|string[]} url The URL, which can be a single URL or an array of URL parts to join
+ * with a / while URL encoding all the parts.
+ * @param {object} qs The query string object, if any.
+ * @returns {string} The URL with the
+ */
+function createUrl(url, qs) {
+  const fullUrl = encodePath(url);
+  const queryString = toQueryString(qs);
+  if (!queryString) {
+    return fullUrl;
+  }
+  if (fullUrl.indexOf('?') > -1) {
+    return `${fullUrl}&${queryString}`;
+  }
+
+  return `${fullUrl}?${queryString}`;
+}
+
+/**
+ * @typedef {object} AxiosResponse
+ * @property {object} headers An object where the key is the lower cased HTTP header name.
+ * @property {number} status The HTTP status code.
+ * @property {*} data The data from the HTTP response body.
+ */
+
+/**
+ * Handles a successful response from a fetch call.
+ *
+ * @param {boolean} withResponse If {@code true} then the resolved value will be an object with a
+ *     response and data property, where the response is an {@link Response} object and the
+ *     {@code data} is the response data. Otherwise the Promise resolves with the response data
+ *     only.
+ * @returns {function(AxiosResponse): Promise<any>}
+ */
+function handleResponse(withResponse) {
+  return response => (withResponse ? response : response.data);
+}
+
+/**
+ * Issues an HTTP GET request to the URL.
+ *
+ * @param {string|string[]} url The URL to issue the HTTP request to.
+ * @param {object} qs The query string object, if any.
+ * @param {boolean} withResponse If {@code true} then the resolved value will be an object with a
+ *     response and data property, where the response is an {@link Response} object and the
+ *     {@code data} is the response data. Otherwise the Promise resolves with the response data
+ *     only.
+ * @returns {Promise<any | never>}
+ */
+export function httpGet(url, qs = {}, withResponse = false) {
+  return axios.get(createUrl(url, qs)).then(handleResponse(withResponse));
+}
+
+/**
+ * Issues an HTTP POST request to the URL.
+ *
+ * @param {string|string[]} url The URL to issue the HTTP request to.
+ * @param {object} qs The query string object, if any.
+ * @param {*} body The body of the request to send.
+ * @param {boolean} withResponse If {@code true} then the resolved value will be an object with a
+ *     response and data property, where the response is an {@link Response} object and the
+ *     {@code data} is the response data. Otherwise the Promise resolves with the response data
+ *     only.
+ * @returns {Promise<any | never>}
+ */
+export function httpPost(url, qs = {}, body = {}, withResponse = false) {
+  return axios.post(createUrl(url, qs), body).then(handleResponse(withResponse));
+}
+
+/**
+ * Issues an HTTP PUT request to the URL.
+ *
+ * @param {string|string[]} url The URL to issue the HTTP request to.
+ * @param {object} qs The query string object, if any.
+ * @param {*} body The body of the request to send.
+ * @param {boolean} withResponse If {@code true} then the resolved value will be an object with a
+ *     response and data property, where the response is an {@link Response} object and the
+ *     {@code data} is the response data. Otherwise the Promise resolves with the response data
+ *     only.
+ * @returns {Promise<any | never>}
+ */
+export function httpPut(url, qs = {}, body = {}, withResponse = false) {
+  return axios.put(createUrl(url, qs), body).then(handleResponse(withResponse));
+}
+
+/**
+ * Issues an HTTP DELETE request to the URL.
+ *
+ * @param {string|string[]} url The URL to issue the HTTP request to.
+ * @param {object} qs The query string object, if any.
+ * @param {*} body The body of the request to send.
+ * @param {boolean} withResponse If {@code true} then the resolved value will be an object with a
+ *     response and data property, where the response is an {@link Response} object and the
+ *     {@code data} is the response data. Otherwise the Promise resolves with the response data
+ *     only.
+ * @returns {Promise<any | never>}
+ */
+export function httpDelete(url, qs = {}, body = {}, withResponse = false) {
+  return axios.delete(createUrl(url, qs), body).then(handleResponse(withResponse));
+}
